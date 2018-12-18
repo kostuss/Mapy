@@ -46,17 +46,54 @@ private:
    // size_type smallest_hash;
     //size_type max_hash;
     std::hash<key_type> GetNumberFromKey;
-    static const size_type MAX_HASH= 20470;
+    static const size_type MAX_HASH= 2000;
+    size_type max_hash;
+
 
     size_type get_hash_index(const key_type& key) const
     {
-        return (GetNumberFromKey(key)) % MAX_HASH;
+        return (GetNumberFromKey(key)) % max_hash;
     }
+
+    void rehash()
+    {
+        size_type new_max=max_hash*2;
+        Node** temporary_buffer= new Node* [new_max+1]{nullptr};
+        iterator iter;
+        for(iter=begin();iter!=end(); iter++)
+        {
+            size_type index = (GetNumberFromKey(iter.node->element.first) % new_max);
+
+            if(temporary_buffer[index]!=nullptr) // list is not empty
+            {
+                //we need to add to the list
+                Node* helper = temporary_buffer[index];
+                Node* temporary = new Node(iter.node->element,index,helper, nullptr );
+                helper->previous=temporary;
+                temporary_buffer[index]=temporary;
+                //map_size++;
+
+
+            } else // list is empty
+            {
+
+                Node* temporary= new Node(iter.node->element,index, nullptr, nullptr);
+                temporary_buffer[index]=temporary;
+                //map_size++;
+            }
+            clear();
+            //delete[] buffer;
+            buffer=temporary_buffer;
+            max_hash=new_max;
+        }
+
+    }
+
 
     void clear()
     {
       if (buffer== nullptr) return;
-      for (size_type i=0; i<MAX_HASH; i++)
+      for (size_type i=0; i<max_hash+1; i++)
       {
         Node* temporary = buffer[i];
         while(temporary!= nullptr)
@@ -67,35 +104,36 @@ private:
         }
         buffer[i]=nullptr;
       }
-      map_size = 0;
       //biggest_hash = 0; // nie podoba mi sie
       //smallest_hash = MAX_HASH-1 ;
     }
 
 public:
+
   HashMap()
   {
       map_size=0;
-      //biggest_hash=0;
-      //smallest_hash = MAX_HASH-1; // wtf
-     // max_hash=MAX_HASH;
-      buffer = new Node*[MAX_HASH+1];  //we need one free space for end
-      for(size_type i=0; i<MAX_HASH+1;i++)
-        buffer[i]=nullptr;
+      max_hash=MAX_HASH;
+      buffer = new Node*[max_hash+1]{nullptr};  //we need one free space for end
+
   }
 
   ~HashMap()
   {
       clear();
+      map_size=0;
+      max_hash=0;
       delete[] buffer;
   }
 
   HashMap(std::initializer_list<value_type> list) : map_size(0) // biggest_hash(0),smallest_hash(MAX_HASH-1), max_hash(MAX_HASH)
   {
-    buffer = new Node*[MAX_HASH+1];
-    for(size_type i =0; i<MAX_HASH+1 ;i++) {
-        buffer[i] = nullptr;
+    max_hash=MAX_HASH;
+    while(max_hash<=list.size())
+    {
+           max_hash*=2;
     }
+    buffer = new Node*[max_hash+1]{nullptr};
 
     for(auto &element :list)
     {
@@ -106,13 +144,10 @@ public:
 
   HashMap(const HashMap& other)
   {
-
-      buffer = new Node*[MAX_HASH+1];
-      for(size_type i =0; i<MAX_HASH+1 ;i++)
-          buffer[i] = nullptr;
+        max_hash=other.max_hash;
+      buffer = new Node*[max_hash+1]{nullptr};
 
       map_size=0;
-
       for(auto &element :other)
       {
           this->operator[](element.first) = element.second;
@@ -125,12 +160,16 @@ public:
       other.buffer = nullptr;
       map_size = other.map_size;
       other.map_size = 0;
+      max_hash=other.max_hash;
+      other.max_hash=0;
   }
 
   HashMap& operator=(const HashMap& other)
   {
       if(this ==&other) return *this ;
       clear();
+      map_size=0;
+      max_hash=other.max_hash;
       for(auto &element : other)
           this->operator[](element.first) = element.second;
       return *this;
@@ -142,6 +181,7 @@ public:
       clear();
       std::swap(buffer, other.buffer);
       std::swap(map_size, other.map_size);
+      std::swap(max_hash,other.max_hash);
       return *this;
   }
 
@@ -152,6 +192,7 @@ public:
 
   mapped_type& operator[](const key_type& key)
   {
+      if(map_size>=max_hash) rehash();
       size_type index = get_hash_index(key);
       if(buffer[index]!=nullptr) // list is not empty
       {
@@ -166,12 +207,17 @@ public:
         helper->previous=temporary;
         buffer[index]=temporary;
         map_size++;
+       // if(map_size>=max_hash) rehash();
         return temporary->element.second;
+        //return valueOf(key);
       } else // list is empty
       {
+
         Node* temporary= new Node(value_type(key, mapped_type{}),index, nullptr, nullptr);
         buffer[index]=temporary;
         map_size++;
+        //if(map_size>=max_hash) rehash();
+        //return valueOf(key);
         return temporary->element.second;
       }
   }
@@ -188,7 +234,7 @@ public:
   {
     auto temporary = find(key);
     if(temporary == end())//nie ma takiego elementu
-      throw std::out_of_range("no such key");
+        throw std::out_of_range("no such key");
     return (*temporary).second;//zwracamy wartosc pary
   }
 
@@ -203,7 +249,8 @@ public:
       while(temporary!= nullptr)//przeszukujemy liste
       {
         if(temporary->element.first == key)// there is such element
-          return ConstIterator(temporary, buffer);//  dopisac iterator
+          return ConstIterator(temporary, buffer, max_hash);//  dopisac iterator
+        temporary=temporary->next;
       }
       return cend();// there is not such element in list
     }
@@ -213,16 +260,17 @@ public:
   {
     size_type index = get_hash_index(key);
     if(buffer[index]== nullptr)//list is empty
-      return cend();
+      return end();
     else//list is not empty
     {
       Node* temporary= buffer[index];
       while(temporary!= nullptr)//przeszukujemy liste
       {
         if(temporary->element.first == key)// there is such element
-          return Iterator(temporary, buffer);//  dopisac iterator
+          return Iterator(temporary, buffer, max_hash);//  dopisac iterator
+        temporary=temporary->next;
       }
-      return cend();// there is not such element in list
+      return end();// there is not such element in list
     }
   }
 
@@ -299,12 +347,12 @@ public:
     size_type hash=0;
     while(buffer[hash]== nullptr)
         hash++;
-    return Iterator(buffer[hash], buffer);
+    return Iterator(buffer[hash], buffer, max_hash);
   }
 
   iterator end()
   {
-      return Iterator(buffer[MAX_HASH], buffer);
+      return Iterator(buffer[max_hash], buffer, max_hash);
   }
 
   const_iterator cbegin() const
@@ -314,12 +362,12 @@ public:
       size_type hash=0;
       while(buffer[hash]== nullptr)
           hash++;
-      return ConstIterator(buffer[hash], buffer);
+      return ConstIterator(buffer[hash], buffer, max_hash);
   }
 
   const_iterator cend() const
   {
-      return ConstIterator(buffer[MAX_HASH], buffer);
+      return ConstIterator(buffer[max_hash], buffer, max_hash);
   }
 
   const_iterator begin() const
@@ -346,19 +394,23 @@ public:
 private:
     Node* node;
     Node** buffer;
+    size_t max_hash;
 
     friend class HashMap<KeyType, ValueType>;
     friend void HashMap<KeyType, ValueType>::remove(const const_iterator&);
 
+
 public:
 
-  explicit ConstIterator(Node* node= nullptr, Node** buffer= nullptr): node(node), buffer(buffer)
+  explicit ConstIterator(Node* node= nullptr, Node** buffer= nullptr, size_t max_hash=0):
+  node(node), buffer(buffer), max_hash(max_hash)
   {}
 
   ConstIterator(const ConstIterator& other)
   {
    node=other.node;
    buffer=other.buffer;
+   max_hash=other.max_hash;
   }
 
   ConstIterator& operator++()
@@ -371,7 +423,7 @@ public:
       size_type hash = node->hash + 1;
       while(buffer[hash]== nullptr)
       {
-        if(hash >= MAX_HASH)
+        if(hash >= max_hash)
         {
           node = nullptr;
           return *this;
@@ -396,7 +448,7 @@ public:
   {
       if(node == nullptr)
       {
-          size_t iter = MAX_HASH;
+          size_t iter = max_hash;
           while(iter-- > 0)
           {
               if(buffer[iter] == nullptr)
@@ -475,7 +527,7 @@ public:
   using reference = typename HashMap::reference;
   using pointer = typename HashMap::value_type*;
 
-  explicit Iterator(Node* node=nullptr, Node** buffer= nullptr): ConstIterator(node,buffer)
+  explicit Iterator(Node* node=nullptr, Node** buffer= nullptr, size_t max_hash=0): ConstIterator(node,buffer, max_hash)
   {}
 
   Iterator(const ConstIterator& other)
