@@ -42,11 +42,9 @@ private:
     };
     Node** buffer;
     size_type map_size;
-    //size_type biggest_hash;
-   // size_type smallest_hash;
-    //size_type max_hash;
+
     std::hash<key_type> GetNumberFromKey;
-    static const size_type MAX_HASH= 2000;
+    static const size_type MAX_HASH= 1000;
     size_type max_hash;
 
 
@@ -71,22 +69,17 @@ private:
                 Node* temporary = new Node(iter.node->element,index,helper, nullptr );
                 helper->previous=temporary;
                 temporary_buffer[index]=temporary;
-                //map_size++;
-
 
             } else // list is empty
             {
-
                 Node* temporary= new Node(iter.node->element,index, nullptr, nullptr);
                 temporary_buffer[index]=temporary;
-                //map_size++;
             }
-            clear();
-            //delete[] buffer;
-            buffer=temporary_buffer;
-            max_hash=new_max;
         }
-
+        clear();
+        delete[] buffer;
+        buffer=temporary_buffer;
+        max_hash=new_max;
     }
 
 
@@ -104,8 +97,6 @@ private:
         }
         buffer[i]=nullptr;
       }
-      //biggest_hash = 0; // nie podoba mi sie
-      //smallest_hash = MAX_HASH-1 ;
     }
 
 public:
@@ -115,7 +106,6 @@ public:
       map_size=0;
       max_hash=MAX_HASH;
       buffer = new Node*[max_hash+1]{nullptr};  //we need one free space for end
-
   }
 
   ~HashMap()
@@ -129,16 +119,10 @@ public:
   HashMap(std::initializer_list<value_type> list) : map_size(0) // biggest_hash(0),smallest_hash(MAX_HASH-1), max_hash(MAX_HASH)
   {
     max_hash=MAX_HASH;
-    while(max_hash<=list.size())
-    {
-           max_hash*=2;
-    }
     buffer = new Node*[max_hash+1]{nullptr};
 
     for(auto &element :list)
-    {
         this->operator[](element.first) = element.second;
-    }
 
   }
 
@@ -149,9 +133,8 @@ public:
 
       map_size=0;
       for(auto &element :other)
-      {
           this->operator[](element.first) = element.second;
-      }
+
   }
 
   HashMap(HashMap&& other)
@@ -207,17 +190,13 @@ public:
         helper->previous=temporary;
         buffer[index]=temporary;
         map_size++;
-       // if(map_size>=max_hash) rehash();
         return temporary->element.second;
-        //return valueOf(key);
+
       } else // list is empty
       {
-
         Node* temporary= new Node(value_type(key, mapped_type{}),index, nullptr, nullptr);
         buffer[index]=temporary;
         map_size++;
-        //if(map_size>=max_hash) rehash();
-        //return valueOf(key);
         return temporary->element.second;
       }
   }
@@ -225,17 +204,17 @@ public:
   const mapped_type& valueOf(const key_type& key) const
   {
     auto temporary = find(key);
-    if(temporary == cend())//nie ma takiego elementu
+    if(temporary == cend())
       throw std::out_of_range("no such key");
-    return (*temporary).second;//zwracamy wartosc pary
+    return (*temporary).second;
   }
 
   mapped_type& valueOf(const key_type& key)
   {
     auto temporary = find(key);
-    if(temporary == end())//nie ma takiego elementu
+    if(temporary == end())
         throw std::out_of_range("no such key");
-    return (*temporary).second;//zwracamy wartosc pary
+    return (*temporary).second;
   }
 
   const_iterator find(const key_type& key) const
@@ -342,7 +321,7 @@ public:
 
   iterator begin()
   {
-        if (isEmpty()) return end();
+      if (isEmpty()) return end();
 
     size_type hash=0;
     while(buffer[hash]== nullptr)
@@ -428,7 +407,6 @@ public:
           node = nullptr;
           return *this;
         }
-        //if(buffer[hash] != nullptr) break;
         hash++;
       }
       node = buffer[hash];
@@ -469,10 +447,8 @@ public:
           {
               if(hash<=0)
               {
-                  //hash = 0;
                   throw std::out_of_range ("out");
               }
-              //if(buffer[hash] != nullptr) break;
               hash--;
           }
           node = buffer[hash];
@@ -500,7 +476,7 @@ public:
     return &this->operator*();
   }
 
-  bool operator==(const ConstIterator& other) const   // podjebane sprobowac samemu jak bedzie czas
+  bool operator==(const ConstIterator& other) const
   {
     bool iif = 0;
     if(node == nullptr || other.node == nullptr)
