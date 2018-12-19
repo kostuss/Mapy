@@ -5,6 +5,7 @@
 #include <initializer_list>
 #include <stdexcept>
 #include <utility>
+#include "HashMap.h"
 
 namespace aisdi
 {
@@ -33,7 +34,7 @@ private:
         Node* left;
         Node* right;
         Node* parent;
-        size_t  balance;
+        int  balance;
 
         Node(key_type key, mapped_type value, Node* left= nullptr, Node* right= nullptr, Node* parent= nullptr):
             element(key, value), left(left), right(right), parent(parent), balance(0)
@@ -43,6 +44,121 @@ private:
     Node* root;
     size_type tree_size;
 // napisac funckje do wywazania drzewa
+    void rightRotate(Node* grandparent)
+    {
+        if(grandparent == nullptr)
+            throw std::logic_error("in function: rightRotate(), cannot rotate nullptr");
+        auto temp = grandparent->left;//zapisujemy wokol jakiego noda obracamy
+        grandparent->left = temp->right;//grandparent bedzie na prawo od temp wiec to co jest wieksze od temp zostanie bedzie mniejsze od grandparenta
+        if(temp->right != nullptr)//gdy nie mial wiekszego od siebie to nie chcemy wyluskiwac nulla
+            temp->right->parent = grandparent;
+        if(grandparent == root)//jesli grandparent byl rootem
+            root = temp;//node wokol ktorego obracamy bedzie rootem
+        else if(grandparent == grandparent->parent->left)//jesli grandparent byl lewym dzieckiem
+            grandparent->parent->left = temp;//temp zostanie lewym dzieckiem
+        else//jesli grandparent byl prawym dzieckiem
+            grandparent->parent->right = temp;//temp zostanie prawym dzieckiem
+        temp->right = grandparent;//grandparent jest wiekszy od tempa i idzie na jego prawo
+        temp->parent = grandparent->parent;//przepisanie do tempa rodzica grandparenta
+        grandparent->parent = temp;//temp zostaje rodzicem grandparenta
+
+       // grandparent->setNewHeight();//zaktualizowac wspolczynnik balansu
+       // temp->setNewHeight();//nastepnie tempa
+    }
+
+    void leftRotate(Node* grandparent)
+    {
+        if(grandparent == nullptr)
+            throw std::logic_error("in function: leftRotate(), cannot rotate nullptr");
+        auto temp = grandparent->right;
+        grandparent->right = temp->left;
+        if(temp->left != nullptr)//gdy temp mial lewe dziecko to zmieniamy parenta tego dziecka
+            temp->left->parent = grandparent;
+        if(grandparent == root)//jesli grandparent byl rootrm
+            root = temp;
+        else if(grandparent == grandparent->parent->left)//jesli grandparent byl lewym dzieckiem
+            grandparent->parent->left = temp;
+        else//jesli grandparent byl prawym dzieckiem
+            grandparent->parent->right = temp;
+        temp->left = grandparent;
+        temp->parent = grandparent->parent;
+        grandparent->parent = temp;
+
+       // grandparent->setNewHeight();  // zaktualizowac wspolczynnik balansu
+       // temp->setNewHeight();
+    }
+
+    void rightLeftRotate(Node* grandparent)
+    {
+        rightRotate(grandparent->right);//najpierw rotate na prawym dziecku grandparenta aby naprostować drzewo
+        leftRotate(grandparent);//nastepnie wlasciwy rebalance
+    }
+
+    void leftRightRotate(Node* grandparent)
+    {
+        leftRotate(grandparent->left);
+        rightRotate(grandparent);
+    }
+
+    void rebalance(Node* current, int change)
+    {
+        int check = current->balance;
+        check=check+change;
+        if (check>=-1 && check <=1) //aktualny node jest zbalansowany idziemy wyzej
+        {
+            current->balance=check; //zapisujemy nowy wspolczynnik balanse
+            if (current->parent== nullptr) return; //doszlismy do root
+            if (current ==current->parent->left) // idziemy z lewej strony
+            {
+                rebalance(current->parent, 1);
+            } else //idziemy z prawej
+            {
+                rebalance(current->parent,-1);
+            }
+
+        } else if (check>1) //obracamy w prawo
+        {
+            if(current->left->balance>0) // rotacja prawo prawo
+            {
+                current->balance-=2;
+                current->left->balance-=1;
+                rightRotate(current);
+                return;
+            } else //rotacja lewo prawo
+            {
+                if(current->left->right->balance>0) current->balance=-1;
+                else current->balance=0;
+                if(current->left->right->balance>0) current->left->balance=0;
+                else current->left->balance=1;
+
+                current->left->right->balance=0;
+                leftRightRotate(current);
+                return;
+            }
+
+
+        } else //obracamy w lewo
+        {
+            if(current->right->balance<0) //rotacja prawo prawo
+            {
+                current->balance+=2;
+                current->right->balance=0;
+                leftRotate(current);
+            } else //rotacja prawo lewo
+            {
+                if(current->right->left->balance>0) current->balance=0;
+                else current->balance=1;
+                if(current->right->left->balance>0) current->right->balance=-1;
+                else current->right->balance=0;
+
+                current->right->left->balance=0;
+                rightLeftRotate(current);
+                return;
+            }
+
+        }
+
+    }
 
     Node* find1 (const key_type key ) const
     {
@@ -177,10 +293,12 @@ public:
     else if(key > previous->element.first) {
         previous->right = newElement;
         newElement->parent = previous;
+        rebalance(previous, -1);
     }
     else {
         previous->left = newElement;
         newElement->parent= previous;
+        rebalance(previous,1);
     }
     ++tree_size;
     //rebalanceTree(newElement);// we need to rebalance tree after inserting element
