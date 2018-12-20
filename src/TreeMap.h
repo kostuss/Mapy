@@ -43,27 +43,26 @@ private:
 
     Node* root;
     size_type tree_size;
-// napisac funckje do wywazania drzewa
+
     void rightRotate(Node* grandparent)
     {
         if(grandparent == nullptr)
             throw std::logic_error("in function: rightRotate(), cannot rotate nullptr");
         auto temp = grandparent->left;//zapisujemy wokol jakiego noda obracamy
-        grandparent->left = temp->right;//grandparent bedzie na prawo od temp wiec to co jest wieksze od temp zostanie bedzie mniejsze od grandparenta
-        if(temp->right != nullptr)//gdy nie mial wiekszego od siebie to nie chcemy wyluskiwac nulla
+        grandparent->left = temp->right;
+        if(temp->right != nullptr)
             temp->right->parent = grandparent;
-        if(grandparent == root)//jesli grandparent byl rootem
-            root = temp;//node wokol ktorego obracamy bedzie rootem
-        else if(grandparent == grandparent->parent->left)//jesli grandparent byl lewym dzieckiem
-            grandparent->parent->left = temp;//temp zostanie lewym dzieckiem
-        else//jesli grandparent byl prawym dzieckiem
-            grandparent->parent->right = temp;//temp zostanie prawym dzieckiem
-        temp->right = grandparent;//grandparent jest wiekszy od tempa i idzie na jego prawo
-        temp->parent = grandparent->parent;//przepisanie do tempa rodzica grandparenta
-        grandparent->parent = temp;//temp zostaje rodzicem grandparenta
+        if(grandparent == root)
+            root = temp;
+        else if(grandparent == grandparent->parent->left)
+            grandparent->parent->left = temp;
+        else
+            grandparent->parent->right = temp;
+        temp->right = grandparent;
+        temp->parent = grandparent->parent;
+        grandparent->parent = temp;
 
-       // grandparent->setNewHeight();//zaktualizowac wspolczynnik balansu
-       // temp->setNewHeight();//nastepnie tempa
+
     }
 
     void leftRotate(Node* grandparent)
@@ -84,14 +83,13 @@ private:
         temp->parent = grandparent->parent;
         grandparent->parent = temp;
 
-       // grandparent->setNewHeight();  // zaktualizowac wspolczynnik balansu
-       // temp->setNewHeight();
+
     }
 
     void rightLeftRotate(Node* grandparent)
     {
-        rightRotate(grandparent->right);//najpierw rotate na prawym dziecku grandparenta aby naprostować drzewo
-        leftRotate(grandparent);//nastepnie wlasciwy rebalance
+        rightRotate(grandparent->right);
+        leftRotate(grandparent);
     }
 
     void leftRightRotate(Node* grandparent)
@@ -287,7 +285,7 @@ public:
         temporary = temporary->left;
     }
 
-    Node* newElement = new Node(key, mapped_type{});//wartosc nieistotna
+    Node* newElement = new Node(key, mapped_type{});
     if(previous == nullptr)// only when tree is empty
       root = newElement;
     else if(key > previous->element.first) {
@@ -301,8 +299,6 @@ public:
         rebalance(previous,1);
     }
     ++tree_size;
-    //rebalanceTree(newElement);// we need to rebalance tree after inserting element
-
     return newElement->element.second;
   }
 
@@ -335,41 +331,10 @@ public:
   void remove(const key_type& key)
   {
         remove(find(key));
-        /*
-      Node* to_delete = find1(key);
-      if(to_delete == nullptr) throw std::out_of_range("out_of_range");
-      Node* right = to_delete->right;
-      Node* left = to_delete->left;
-
-      if(right != nullptr)
-      {
-          if(to_delete == root) root = right;
-          else if(to_delete->parent->right == to_delete) to_delete->parent->right = right;
-          else to_delete->parent->left = right;
-
-          if(left != nullptr)
-          {
-              maximum(left)->right = right->left;
-              right->left = left;
-              left->parent = right;
-              //balance(right);
-          }
-      }
-      else
-      {
-          if(to_delete == root) root = left;
-          else if(to_delete->parent->right == to_delete) to_delete->parent->right = left;
-          else to_delete->parent->left = left;
-      }
-      delete to_delete;
-      tree_size--;
-         */
   }
 
   void remove(const const_iterator& it)
   {
-     // if(it.current == nullptr) throw std::out_of_range("out_of_range");
-     // remove(it.current->element.first);
 
     if(it ==end()) throw std::out_of_range("Removing non existing element");
     Node* to_remove = it.current;
@@ -380,24 +345,33 @@ public:
         if(previous== nullptr) // we remove root
             root= nullptr;
         else if (previous->left==to_remove) // we remove left child
-            previous->left= nullptr;
-       else
-            previous->right= nullptr;
+        {
+            previous->left = nullptr;
+            rebalance(previous, -1);
+        }
+       else {
+            previous->right = nullptr;
+            rebalance(previous,1);
+        }
         delete to_remove;
+
     } else if ( to_remove->left!= nullptr && to_remove->right== nullptr) // have only left child
     {
         if (previous == nullptr) //we delete root
         {
             root = to_remove->left;
             root->parent = nullptr;
+            root->balance=0;
         } else if (previous->left == to_remove) //we remove left child
         {
             previous->left=to_remove->left;
             to_remove->left->parent=previous;
+            rebalance(previous,-1);
         } else  //we remove right child
         {
             previous->right=to_remove->left;
             to_remove->left->parent=previous;
+            rebalance(previous,1);
         }
         delete to_remove;
 
@@ -407,14 +381,17 @@ public:
         {
             root = to_remove->right;
             root->parent = nullptr;
+            root->balance=0;
         } else if (previous->left == to_remove) //we remove left child
         {
             previous->left=to_remove->right;
             to_remove->right->parent=previous;
+            rebalance(previous,-1);
         } else  //we remove right child
         {
             previous->right=to_remove->right;
             to_remove->right->parent=previous;
+            rebalance(previous,1);
         }
        delete to_remove;
     } else  // have two children
@@ -424,18 +401,21 @@ public:
         if(to_remove->parent== nullptr) // we remove root
         {
             root=temp;
+            temp->right=to_remove->right->right;
             root->left=to_remove->left;
             root->parent= nullptr;
+            rebalance(temp, to_remove->balance-(temp->balance));
         }
         else // not root
         {
             temp->left=to_remove->left;
             temp->parent=to_remove->parent;
+            temp->right=to_remove->right->right;
+            rebalance(temp, to_remove->balance-(temp->balance));
         }
         delete to_remove;
     }
     tree_size--;
-    //rebalance()
 
   }
 

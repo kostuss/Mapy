@@ -86,7 +86,27 @@ void perfomTest(size_t amount)
 
     std::cout<<"Iterating through "<<amount<<" elements took"<<std::endl<<
              tree_time<<" in treemap"<<std::endl<<
-             hash_time<<" in hashmap"<<std::endl<<std::endl<<std::endl<<std::endl;
+
+             hash_time<<" in hashmap"<<std::endl;
+
+    t1 = high_resolution_clock::now();
+    for(size_t count = 0; count <= amount; count++)
+    {
+        tree.remove(count);
+    }
+    t2 = high_resolution_clock::now();
+    tree_time = duration_cast<milliseconds>( t2 - t1 ).count();
+
+    t3 = high_resolution_clock::now();
+    for(size_t count = 0; count <= amount; count++)
+    {
+        hash.remove(count);
+    }
+    t4 = high_resolution_clock::now();
+    hash_time = duration_cast<milliseconds>( t4 - t3 ).count();
+    std::cout<<"Removing  "<<amount<<" elements took"<<std::endl<<
+             tree_time<<" in treemap"<<std::endl<<
+    hash_time<<" in hashmap"<<std::endl<<std::endl<<std::endl<<std::endl;
 }
 
 } // namespace
